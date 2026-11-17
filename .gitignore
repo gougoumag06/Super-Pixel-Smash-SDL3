@@ -1,0 +1,20 @@
+# Build
+_bin/
+_build_vs/
+_build_linux/
+out/
+_out/
+build/
+test_utils
+*.exe
+
+# IDE
+.vs/
+*.user
+*.suo
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
