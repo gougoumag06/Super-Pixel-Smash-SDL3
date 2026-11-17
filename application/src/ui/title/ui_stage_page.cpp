@@ -1,4 +1,4 @@
-﻿/*
+/*
     Copyright (c) Arnaud BANNIER and Nicolas BODIN.
     Licensed under the MIT License.
     See LICENSE.md in the project root for license information.
@@ -88,25 +88,32 @@ UIStagePage::UIStagePage(Scene* scene)
     std::string labelString;
     std::vector<std::string> textStrings;
     const float textWidth = 95.f;
+    const float playerTextWidth = 135.f;
 
-    // Player 1
-    labelString.assign("Player 1");
-    textStrings.push_back("Fire knight");
-    textStrings.push_back("Water priestess");
-    textStrings.push_back("Leaf ranger");
-    m_player1List = new UITextList(
-        m_scene, labelString, textStrings, Colors::White, textWidth
-    );
-    m_player1List->SetIsCycle(true);
-    m_player1List->AddSelectableListener(this);
+    std::vector<std::string> basePlayerStrings = {
+        "Fire knight",
+        "Water priestess",
+        "Leaf ranger",
+        "Fire knight (CPU)",
+        "Water priestess (CPU)",
+        "Leaf ranger (CPU)"
+    };
 
-    // Player 2
-    labelString.assign("Player 2");
-    m_player2List = new UITextList(
-        m_scene, labelString, textStrings, Colors::White, textWidth
-    );
-    m_player2List->SetIsCycle(true);
-    m_player2List->AddSelectableListener(this);
+    for (int i = 0; i < MAX_PLAYER_COUNT; i++)
+    {
+        char labelBuf[32];
+        snprintf(labelBuf, sizeof(labelBuf), "Player %d", i + 1);
+        std::vector<std::string> options = basePlayerStrings;
+        if (i >= 1)
+        {
+            options.push_back("Off");
+        }
+        m_playerLists[i] = new UITextList(
+            m_scene, std::string(labelBuf), options, Colors::White, playerTextWidth
+        );
+        m_playerLists[i]->SetIsCycle(true);
+        m_playerLists[i]->AddSelectableListener(this);
+    }
 
     //--------------------------------------------------------------------------
     // Stage List
@@ -132,7 +139,7 @@ UIStagePage::UIStagePage(Scene* scene)
     m_timeList->AddSelectableListener(this);
 
     ////--------------------------------------------------------------------------
-    //// TODO : Ajout d'un texte et d'une liste pour la fr�quence d'apparition des potions
+    //// TODO : Ajout d'un texte et d'une liste pour la frï¿½quence d'apparition des potions
 
     labelString.assign("potion");
     textStrings.clear();
@@ -170,25 +177,25 @@ UIStagePage::UIStagePage(Scene* scene)
     //--------------------------------------------------------------------------
     // Grid layouts
 
-    // TODO : Modifier le vLayout pour ajouter un champ potion
-    UIGridLayout* vLayout = new UIGridLayout(m_scene, 10, 1);
+    UIGridLayout* vLayout = new UIGridLayout(m_scene, 11, 1);
     vLayout->SetParent(m_content);
     vLayout->SetAnchor(Anchor::CENTER);
     vLayout->SetSpacing(2.f);
-    vLayout->SetRowSpacing(2, 10.f);
-    vLayout->SetRowSpacing(2, 20.f);
-    vLayout->SetRowSize(22.f);
+    vLayout->SetRowSpacing(4, 10.f);
+    vLayout->SetRowSpacing(9, 10.f);
+    vLayout->SetRowSize(19.f);
     vLayout->SetColumnSize(300.f);
 
     vLayout->AddObject(m_playerText, 0, 0);
-    vLayout->AddObject(m_player1List, 1, 0);
-    vLayout->AddObject(m_player2List, 2, 0);
-    vLayout->AddObject(m_optionText, 3, 0);
-    vLayout->AddObject(m_timeList, 4, 0);
-    vLayout->AddObject(m_potionList, 5, 0);////////////////////////////////////////
-    vLayout->AddObject(m_bombeList, 6, 0);
-    vLayout->AddObject(m_stageList, 7, 0);
-    // TODO : Ajout de l'objet potion
+    vLayout->AddObject(m_playerLists[0], 1, 0);
+    vLayout->AddObject(m_playerLists[1], 2, 0);
+    vLayout->AddObject(m_playerLists[2], 3, 0);
+    vLayout->AddObject(m_playerLists[3], 4, 0);
+    vLayout->AddObject(m_optionText, 5, 0);
+    vLayout->AddObject(m_timeList, 6, 0);
+    vLayout->AddObject(m_potionList, 7, 0);
+    vLayout->AddObject(m_bombeList, 8, 0);
+    vLayout->AddObject(m_stageList, 9, 0);
 
     UIGridLayout* hLayout = new UIGridLayout(m_scene, 1, 2);
     hLayout->SetSpacing(20.f);
@@ -198,8 +205,7 @@ UIStagePage::UIStagePage(Scene* scene)
     hLayout->AddObject(m_backButton, 0, 0);
     hLayout->AddObject(m_startButton, 0, 1);
 
-    // TODO : Modifier pour laisser la place au champ potion
-    vLayout->AddObject(hLayout, 8, 0);////////////////////5
+    vLayout->AddObject(hLayout, 10, 0);
 
     vLayout->Update();
     hLayout->Update();
@@ -213,19 +219,20 @@ UIStagePage::UIStagePage(Scene* scene)
     //--------------------------------------------------------------------------
     // Navigation
 
-    m_group->AddSelectable(m_player1List);
-    m_group->AddSelectable(m_player2List);
+    for (int i = 0; i < MAX_PLAYER_COUNT; i++)
+    {
+        m_group->AddSelectable(m_playerLists[i]);
+    }
     m_group->AddSelectable(m_timeList);
-    m_group->AddSelectable(m_backButton);
-    m_group->AddSelectable(m_startButton);
-    m_group->AddSelectable(m_potionList);///////////////////////////////////
+    m_group->AddSelectable(m_potionList);
     m_group->AddSelectable(m_bombeList);
     m_group->AddSelectable(m_stageList);
-    // TODO : Ajouter la potion
+    m_group->AddSelectable(m_backButton);
+    m_group->AddSelectable(m_startButton);
 
     m_group->ComputeAutoNavigation();
 
-    m_group->SetSelected(m_player1List);
+    m_group->SetSelected(m_playerLists[0]);
     m_group->SetCursorOnSelected();
 }
 
@@ -315,26 +322,27 @@ void UIStagePage::InitFadeAnim()
 
 void UIStagePage::InitPageWithConfig()
 {
-    switch (g_gameCommon.playerConfigs[0].type)
+    for (int i = 0; i < MAX_PLAYER_COUNT; i++)
     {
-    default:
-    case PlayerType::FIRE_KNIGHT:
-        m_player1List->SetFirstSelectedItem(0); break;
-    case PlayerType::WATER_PRIESTESS:
-        m_player1List->SetFirstSelectedItem(1); break;
-    case PlayerType::LEAF_RANGER:
-        m_player1List->SetFirstSelectedItem(2); break;
-    }
+        if (i >= g_gameCommon.playerCount && i >= 1)
+        {
+            m_playerLists[i]->SetFirstSelectedItem(6);
+            continue;
+        }
 
-    switch (g_gameCommon.playerConfigs[1].type)
-    {
-    default:
-    case PlayerType::FIRE_KNIGHT:
-        m_player2List->SetFirstSelectedItem(0); break;
-    case PlayerType::WATER_PRIESTESS:
-        m_player2List->SetFirstSelectedItem(1); break;
-    case PlayerType::LEAF_RANGER:
-        m_player2List->SetFirstSelectedItem(2); break;
+        int idx = 0;
+        switch (g_gameCommon.playerConfigs[i].type)
+        {
+        default:
+        case PlayerType::FIRE_KNIGHT:     idx = 0; break;
+        case PlayerType::WATER_PRIESTESS: idx = 1; break;
+        case PlayerType::LEAF_RANGER:     idx = 2; break;
+        }
+        if (g_gameCommon.playerConfigs[i].isCPU)
+        {
+            idx += 3;
+        }
+        m_playerLists[i]->SetFirstSelectedItem(idx);
     }
 
     switch (g_gameCommon.stageConfig.duration)
@@ -367,7 +375,7 @@ void UIStagePage::InitPageWithConfig()
     }
 
     ///////////////////////////////////////////////////////////////////////
-    // TODO : G�rer la fr�quence de la potion
+    // TODO : Gï¿½rer la frï¿½quence de la potion
     switch (g_gameCommon.stageConfig.bombsFrequency)
     {
     default:
@@ -384,21 +392,27 @@ void UIStagePage::InitPageWithConfig()
 
 void UIStagePage::UpdateConfigs()
 {
-    switch (m_player1List->GetSelectedItem())
+    int activeCount = 0;
+    for (int i = 0; i < MAX_PLAYER_COUNT; i++)
     {
-    default:
-    case 0: g_gameCommon.playerConfigs[0].type = PlayerType::FIRE_KNIGHT; break;
-    case 1: g_gameCommon.playerConfigs[0].type = PlayerType::WATER_PRIESTESS; break;
-    case 2: g_gameCommon.playerConfigs[0].type = PlayerType::LEAF_RANGER; break;
-    }
+        int sel = m_playerLists[i]->GetSelectedItem();
+        if (sel == 6) continue;
 
-    switch (m_player2List->GetSelectedItem())
-    {
-    default:
-    case 0: g_gameCommon.playerConfigs[1].type = PlayerType::FIRE_KNIGHT; break;
-    case 1: g_gameCommon.playerConfigs[1].type = PlayerType::WATER_PRIESTESS; break;
-    case 2: g_gameCommon.playerConfigs[1].type = PlayerType::LEAF_RANGER; break;
+        PlayerConfig& cfg = g_gameCommon.playerConfigs[activeCount];
+        cfg.teamID = activeCount;
+        cfg.playerID = activeCount;
+        cfg.skinID = activeCount % 2;
+        cfg.isCPU = (sel >= 3);
+        switch (sel % 3)
+        {
+        default:
+        case 0: cfg.type = PlayerType::FIRE_KNIGHT; break;
+        case 1: cfg.type = PlayerType::WATER_PRIESTESS; break;
+        case 2: cfg.type = PlayerType::LEAF_RANGER; break;
+        }
+        activeCount++;
     }
+    g_gameCommon.playerCount = activeCount;
 
     switch (m_timeList->GetSelectedItem())
     {
@@ -433,5 +447,5 @@ void UIStagePage::UpdateConfigs()
     }
     g_gameCommon.UpdatePlayerConfigs();
 
-    // TODO : G�rer la fr�quence de la potion
+    // TODO : Gï¿½rer la frï¿½quence de la potion
 }

@@ -37,8 +37,7 @@ private:
     
     // TODO : texte pour la potion
 
-    UITextList* m_player1List;
-    UITextList* m_player2List;
+    UITextList* m_playerLists[MAX_PLAYER_COUNT];
     UITextList* m_timeList;
     UITextList* m_potionList;////////////////////////////////////
     UITextList* m_bombeList;
